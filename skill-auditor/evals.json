@@ -1,0 +1,79 @@
+{
+  "notes": "Delta design: 'baseline' is what Claude does for this query WITHOUT skill-auditor loaded. Each eval PASSES only if the with-skill run adds the listed expected_behavior over that baseline. Also run each query 3x and track token use and time.",
+  "evals": [
+    {
+      "skills": ["skill-auditor"],
+      "query": "Audit this skill and give it a score.",
+      "files": ["fixtures/no-evals-skill/SKILL.md"],
+      "baseline": "Without the skill, Claude gives loose prose praise, no numeric score, no gate, and rarely notices the missing evals.",
+      "expected_behavior": [
+        "Produces a scorecard with a percentage across all six dimensions",
+        "Scores the Evaluations dimension at or near 0 because the target ships no evals",
+        "Caps the readiness gate at NEEDS WORK due to the no-evals override, even if other dimensions score well",
+        "Lists 'add 3 eval scenarios with expected_behavior and a delta measurement' as a HIGH fix",
+        "Writes a fix report file (<skill-name>-audit.md) with ranked fixes, each naming the exact change, plus a copy-paste rewritten description and a re-audit checklist"
+      ]
+    },
+    {
+      "skills": ["skill-auditor"],
+      "query": "Is this skill too big? Should I split it?",
+      "files": ["fixtures/god-skill/SKILL.md"],
+      "baseline": "Without the skill, Claude gives a vague 'maybe' without a line count or a concrete trigger.",
+      "expected_behavior": [
+        "Returns a SPLIT verdict",
+        "Names the exact trigger that fired (multiple unrelated jobs/domains, or body over 500 lines / 5000 tokens)",
+        "Reports the body line/token count as evidence",
+        "States how to split: SKILL.md overview plus one reference file per domain one level deep, or two separate skills"
+      ]
+    },
+    {
+      "skills": ["skill-auditor"],
+      "query": "Review my skill's description.",
+      "files": ["fixtures/vague-description-skill/SKILL.md"],
+      "baseline": "Without the skill, Claude may call the description 'a bit short' but not tie it to activation or to the 1024-char rule.",
+      "expected_behavior": [
+        "Flags the description as too short or vague with no WHEN/trigger phrases",
+        "Deducts from the Description dimension and quotes the offending description text",
+        "Recommends a third-person WHAT + WHEN + 3 trigger phrases rewrite, and negative triggers if it would overtrigger",
+        "Does not reward length alone, and rejects a description over 1024 characters"
+      ]
+    },
+    {
+      "skills": ["skill-auditor"],
+      "query": "Check if my skill is tested and will actually activate.",
+      "files": ["fixtures/no-evals-skill/SKILL.md"],
+      "baseline": "Without the skill, Claude eyeballs the description and declares it 'looks fine' with no activation test.",
+      "expected_behavior": [
+        "Reports the eval count and that no activation / trigger-rate check exists",
+        "Runs a trigger dry-run: drafts 3 realistic should-fire requests and 3 should-not requests and predicts fire/no-fire from the description alone",
+        "Recommends a trigger-rate test: ~20 queries, about half meant to fire, target rate above 0.5",
+        "Does not conflate a well-written description with a tested one",
+        "This query should NOT be answered by a general code reviewer - it must select skill-auditor (negative-trigger sanity)"
+      ]
+    },
+    {
+      "skills": ["skill-auditor"],
+      "query": "Will this skill install and run in Codex, Claude Code, and Cursor?",
+      "files": ["fixtures/no-evals-skill/SKILL.md"],
+      "baseline": "Without the skill, Claude gives a generic yes without checking layout, paths, or agent-specific syntax.",
+      "expected_behavior": [
+        "Checks the portability items: folder name matches `name`, standard SKILL.md layout, forward-slash paths, no agent-specific syntax required, MCP tools fully-qualified",
+        "Reports a PORTABLE status or names the exact blocker with a line reference",
+        "Includes an Install section in the report listing the per-agent skills directories and npx openskills",
+        "States that a markdown-only skill needs no runtime dependencies to install"
+      ]
+    },
+    {
+      "skills": ["skill-auditor"],
+      "query": "Audit this skill.",
+      "files": ["fixtures/bloated-unsafe-skill/SKILL.md"],
+      "baseline": "Without the skill, Claude comments on wording but misses the hardcoded token and the unguarded rm -rf.",
+      "expected_behavior": [
+        "Raises a Safety section flagging the hardcoded API_TOKEN, the unguarded 'rm -rf /srv/app/*', and the 'curl | bash' fetch-and-execute, each with a line reference",
+        "Caps the readiness gate at RISKY because of the safety red flags",
+        "Produces a 'Cut these' list: the 'What is deployment' re-explanation, the option menu, the empty '## Notes: TBD', the duplicated 'Deployment is important' line, and the dead reference/advanced-deploy.md link",
+        "Flags the description ('Deploys the app. Use when deploying.') as too short with no real triggers"
+      ]
+    }
+  ]
+}
